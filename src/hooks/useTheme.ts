@@ -1,3 +1,4 @@
+// src/hooks/useTheme.ts
 import { getTheme } from '@/src/constants/theme';
 import { useThemeStore } from '@/src/store/themeStore';
 
@@ -7,5 +8,7 @@ export function useTheme() {
 
     const theme = getTheme(themeMode);
 
-    return { themeMode, theme, toggleTheme };
+    const isDark = themeMode === 'dark'; // 👈 aqui definimos
+
+    return { themeMode, theme, isDark, toggleTheme };
 }

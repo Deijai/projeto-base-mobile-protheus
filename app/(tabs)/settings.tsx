@@ -5,6 +5,7 @@ import React from 'react';
 import {
     Alert,
     StyleSheet,
+    Switch,
     Text,
     TouchableOpacity,
     View,
@@ -214,28 +215,51 @@ export default function SettingsScreen() {
                         { backgroundColor: theme.surface, borderColor: theme.border },
                     ]}
                 >
-                    <TouchableOpacity
-                        style={styles.listItem}
-                        onPress={async () => {
-                            const ok = await enableBiometric();
-                            if (ok) {
-                                toast.success('Biometria ativada.');
-                            } else {
-                                toast.error('Não foi possível ativar biometria neste aparelho.');
-                            }
-                        }}
-                    >
+                    <View style={styles.listItem}>
                         <Ionicons name="finger-print-outline" size={20} color={theme.text} />
                         <View style={{ flex: 1 }}>
                             <Text style={[styles.itemTitle, { color: theme.text }]}>
-                                {biometricEnabled ? 'Biometria ativa' : 'Ativar biometria'}
+                                Login com biometria
                             </Text>
                             <Text style={{ color: theme.muted, fontSize: 12 }}>
-                                Use Face ID / digital para entrar mais rápido
+                                {biometricEnabled
+                                    ? `Usando ${biometricType === 'face' ? 'Face ID' : 'biometria'}`
+                                    : 'Ative para entrar sem digitar senha'}
                             </Text>
                         </View>
-                        <Ionicons name="chevron-forward" size={16} color={theme.muted} />
-                    </TouchableOpacity>
+                        <Switch
+                            value={biometricEnabled}
+                            onValueChange={async (value) => {
+                                if (value) {
+                                    const result = await enableBiometric();
+                                    if (!result.ok) {
+                                        // garante que visualmente volte
+                                        disableBiometric();
+                                        switch (result.reason) {
+                                            case 'no-refresh':
+                                                toast.error('Faça login novamente para ativar a biometria.');
+                                                break;
+                                            case 'no-hardware':
+                                                toast.error('Este dispositivo não liberou biometria para o app.');
+                                                break;
+                                            case 'not-enrolled':
+                                                toast.error('Cadastre Face ID / Touch ID nas configurações do iPhone.');
+                                                break;
+                                            default:
+                                                toast.error('Não foi possível ativar a biometria.');
+                                        }
+                                        return;
+                                    }
+                                    toast.success('Biometria ativada.');
+                                } else {
+                                    disableBiometric();
+                                    toast.info('Biometria desativada.');
+                                }
+                            }}
+                            thumbColor={biometricEnabled ? theme.primary : '#fff'}
+                            trackColor={{ false: theme.border, true: theme.primary + '50' }}
+                        />
+                    </View>
                 </View>
 
 

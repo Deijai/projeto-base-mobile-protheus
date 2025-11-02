@@ -22,18 +22,32 @@ export default function BranchesScreen() {
     const { theme } = useTheme();
     const router = useRouter();
     const toast = useToast();
-    const { fetchBranches, branches, loading, hasNext, selectBranch } = useBranchStore();
-    const logout = useAuthStore((s) => s.logout);
 
+    const {
+        fetchBranches,
+        branches,
+        loading,
+        hasNext,
+        selectBranch,
+        hydrated,      // 👈 pega aqui
+        error,
+    } = useBranchStore();
+
+    const logout = useAuthStore((s) => s.logout);
     const { fromLogin, fromSettings } = useLocalSearchParams();
 
     const [search, setSearch] = useState('');
 
     useEffect(() => {
-        console.log('useEffect branches');
+        // só tenta buscar quando o store já estiver hidratado
+        if (!hydrated) return;
 
-        fetchBranches(true);
-    }, []);
+        fetchBranches(true).catch((err) => {
+            console.error('Erro ao buscar filiais', err);
+            toast.error('Erro ao buscar filiais. Faça login novamente.');
+            logout();
+        });
+    }, [hydrated]);
 
     const filteredBranches = branches.filter((b) => {
         const term = search.toLowerCase();
@@ -47,7 +61,6 @@ export default function BranchesScreen() {
     const handleSelect = (branch: any) => {
         selectBranch(branch);
         toast.success(`Filial selecionada: ${branch.Description}`);
-        // depois da filial, você pode ir pro (tabs) ou pra tela de módulos
         router.replace('/modules');
     };
 
@@ -57,17 +70,24 @@ export default function BranchesScreen() {
         }
     };
 
+    // enquanto não hidratou, mostra um loading simples
+    if (!hydrated) {
+        return (
+            <ThemedSafeArea style={{ flex: 1, backgroundColor: theme.background }}>
+                <LoadingOverlay visible text="Preparando filiais..." />
+            </ThemedSafeArea>
+        );
+    }
+
     return (
         <ThemedSafeArea style={{ flex: 1, backgroundColor: theme.background }}>
-            {/* TOP BAR */}
-            {fromLogin === 'true' || fromSettings === 'true' && (
+            {(fromLogin === 'true' || fromSettings === 'true') && (
                 <View style={styles.topBar}>
                     <TouchableOpacity onPress={() => router.back()}>
                         <Ionicons name="arrow-back" size={25} color={theme.primary} />
                     </TouchableOpacity>
                 </View>
             )}
-
 
             <Text style={[styles.subtitle, { color: theme.muted }]}>
                 Escolha a filial com a qual deseja trabalhar.
@@ -90,10 +110,9 @@ export default function BranchesScreen() {
                 />
             </View>
 
-            {/* list */}
+            {/* lista ou loading */}
             {loading && branches.length === 0 ? (
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                    {/* <ActivityIndicator color={theme.primary} /> */}
                     <LoadingOverlay visible={loading} text="Carregando filiais..." />
                 </View>
             ) : (
@@ -114,7 +133,8 @@ export default function BranchesScreen() {
                                     {item.Description?.trim() || 'Sem descrição'}
                                 </Text>
                                 <Text style={{ color: theme.muted, fontSize: 13 }}>
-                                    {item.Code?.trim()} • {item.City?.trim()} {item.State ? `- ${item.State}` : ''}
+                                    {item.Code?.trim()} • {item.City?.trim()}{' '}
+                                    {item.State ? `- ${item.State}` : ''}
                                 </Text>
                                 {item.Cgc ? (
                                     <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>
@@ -146,10 +166,6 @@ const styles = StyleSheet.create({
         paddingTop: 8,
         marginBottom: 6,
     },
-    title: {
-        fontSize: 22,
-        fontWeight: '700',
-    },
     subtitle: {
         fontSize: 14,
         paddingHorizontal: 20,
@@ -169,6 +185,7 @@ const styles = StyleSheet.create({
     searchInput: {
         flex: 1,
         fontSize: 14,
+        minHeight: 36,
     },
     branchCard: {
         borderWidth: 1,

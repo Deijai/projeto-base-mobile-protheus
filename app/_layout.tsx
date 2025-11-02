@@ -2,7 +2,9 @@
 import { LoadingOverlay } from '@/src/components/ui/LoadingOverlay';
 import { useModuleStore } from '@/src/store/moduleStore';
 import { debugStorage } from '@/src/utils/debugStorage';
+import { useFonts } from 'expo-font';
 import { Slot, useRouter, useSegments } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -11,9 +13,16 @@ import { useAuthStore } from '../src/store/authStore';
 import { useBranchStore } from '../src/store/branchStore';
 import { useConnectionStore } from '../src/store/connectionStore';
 
+SplashScreen.preventAutoHideAsync();
+
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
+
+  const [loaded] = useFonts({
+    PoppinsRegular: require("../assets/fonts/Poppins-Regular.ttf"),
+    PoppinsBold: require("../assets/fonts/Poppins-Bold.ttf"),
+  });
 
   // stores
 
@@ -30,6 +39,13 @@ export default function RootLayout() {
     isLoading: authLoading,
     tryAutoBiometricLogin,
   } = useAuthStore();
+
+  useEffect(() => {
+    // Só esconder splash quando fontes E i18n estiverem carregados
+    if (loaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [loaded]);
 
   useEffect(() => {
     const initBiometric = async () => {

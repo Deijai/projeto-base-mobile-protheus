@@ -9,7 +9,8 @@ type BranchState = {
     loading: boolean;
     error: string | null;
     hasNext: boolean;
-    page: number; // 👈 controla pagina atual
+    page: number;
+    hydrated: boolean;               // 👈 novo
     fetchBranches: (reset?: boolean) => Promise<void>;
     selectBranch: (branch: BranchDto) => void;
     clear: () => void;
@@ -24,6 +25,7 @@ export const useBranchStore = create<BranchState>()(
             error: null,
             hasNext: false,
             page: 1,
+            hydrated: false,             // 👈 começa false
 
             async fetchBranches(reset = false) {
                 const { loading, hasNext, page, branches } = get();
@@ -44,14 +46,12 @@ export const useBranchStore = create<BranchState>()(
                     const res = await branchService.list(nextPage);
 
                     if (reset) {
-                        // primeira carga
                         set({
                             branches: res.items,
                             hasNext: res.hasNext ?? false,
                             page: 1,
                         });
                     } else {
-                        // append
                         set({
                             branches: [...branches, ...res.items],
                             hasNext: res.hasNext ?? false,
@@ -63,6 +63,7 @@ export const useBranchStore = create<BranchState>()(
                         error: err?.message ?? 'Erro ao carregar filiais',
                     });
                 } finally {
+                    // 🔥 garante que sempre vai voltar pra false
                     set({ loading: false });
                 }
             },
@@ -82,6 +83,14 @@ export const useBranchStore = create<BranchState>()(
         }),
         {
             name: 'branch-storage',
+            // 👇 isso roda quando o persist termina de hidratar
+            onRehydrateStorage: () => (state) => {
+                // quando hidratar: força loading=false e marca hydrated=true
+                useBranchStore.setState({
+                    loading: false,
+                    hydrated: true,
+                });
+            },
             storage: {
                 getItem: async (name) => {
                     const value = await AsyncStorage.getItem(name);

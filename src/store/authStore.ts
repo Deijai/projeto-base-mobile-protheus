@@ -13,6 +13,13 @@ export interface User {
   refreshToken?: string;
 }
 
+type EnableResultReason =
+  | 'success'
+  | 'no-refresh'
+  | 'no-hardware'
+  | 'not-enrolled'
+  | 'unknown';
+
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
@@ -24,7 +31,7 @@ interface AuthState {
   login: (username: string, password: string) => Promise<boolean>;
   biometricLogin: () => Promise<boolean>;
   tryAutoBiometricLogin: () => Promise<boolean>;
-  enableBiometric: () => Promise<boolean>;
+  enableBiometric: () => Promise<{ ok: boolean; reason: EnableResultReason }>;
   disableBiometric: () => void;
   logout: () => void;
   setUser: (user: User | null) => void;
@@ -59,7 +66,7 @@ export const useAuthStore = create<AuthState>()(
           return true;
         } catch (error: any) {
           set({
-            error: error.message || 'Falha no login',
+            error: error?.message || 'Falha no login',
             isAuthenticated: false,
           });
           return false;
@@ -82,11 +89,17 @@ export const useAuthStore = create<AuthState>()(
         const enrolled = await LocalAuthentication.isEnrolledAsync();
         if (!enrolled) return false;
 
+        console.log('compatible', compatible, 'enrolled', enrolled);
+
+
         const result = await LocalAuthentication.authenticateAsync({
           promptMessage: 'Autenticar com biometria',
           cancelLabel: 'Cancelar',
           disableDeviceFallback: false,
         });
+
+        console.log('result', result);
+
 
         if (!result.success) return false;
 
@@ -105,7 +118,6 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      // 👇 tenta logar automaticamente se tiver biometria ativa
       async tryAutoBiometricLogin() {
         const { biometricEnabled, user, isAuthenticated } = get();
         if (isAuthenticated || !biometricEnabled || !user?.refreshToken) return false;
@@ -138,18 +150,23 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      // ⚙️ agora retorna {ok, reason}
       async enableBiometric() {
         const { user } = get();
         if (!user?.refreshToken) {
-          console.log('[enableBiometric] Nenhum usuário com refreshToken ativo.');
-          return false;
+          console.log('[enableBiometric] Nenhum usuário logado com refreshToken.');
+          return { ok: false, reason: 'no-refresh' };
         }
 
         const compatible = await LocalAuthentication.hasHardwareAsync();
-        if (!compatible) return false;
+        if (!compatible) {
+          return { ok: false, reason: 'no-hardware' };
+        }
 
         const enrolled = await LocalAuthentication.isEnrolledAsync();
-        if (!enrolled) return false;
+        if (!enrolled) {
+          return { ok: false, reason: 'not-enrolled' };
+        }
 
         const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
         let typeLabel: string | undefined;
@@ -163,8 +180,7 @@ export const useAuthStore = create<AuthState>()(
         }
 
         set({ biometricEnabled: true, biometricType: typeLabel });
-        console.log(`[enableBiometric] ${typeLabel} ativada.`);
-        return true;
+        return { ok: true, reason: 'success' };
       },
 
       disableBiometric() {
@@ -183,7 +199,8 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: () => () => {
+        // marca como hidratado
         useAuthStore.setState({ hydrated: true });
       },
       storage: {
