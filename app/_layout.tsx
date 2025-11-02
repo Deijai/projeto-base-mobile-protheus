@@ -1,6 +1,7 @@
 // app/_layout.tsx
 import { LoadingOverlay } from '@/src/components/ui/LoadingOverlay';
 import { useModuleStore } from '@/src/store/moduleStore';
+import { debugStorage } from '@/src/utils/debugStorage';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
@@ -15,15 +16,34 @@ export default function RootLayout() {
   const segments = useSegments();
 
   // stores
-  const { isAuthenticated, isLoading: authLoading } = useAuthStore();
+
   const { isValid: restValid, config } = useConnectionStore();
   const { selectedBranch } = useBranchStore();
   const { selectedModule } = useModuleStore();
 
   // evita navegar antes do root montar
   const [isNavigationReady, setIsNavigationReady] = useState(false);
+  const {
+    isAuthenticated,
+    hydrated,
+    biometricEnabled,
+    isLoading: authLoading,
+    tryAutoBiometricLogin,
+  } = useAuthStore();
 
   useEffect(() => {
+    const initBiometric = async () => {
+      if (hydrated && !isAuthenticated && biometricEnabled) {
+        const ok = await tryAutoBiometricLogin();
+        if (ok) console.log('Autenticado automaticamente via Face ID / Biometria ✅');
+      }
+    };
+    initBiometric();
+  }, [hydrated, biometricEnabled]);
+
+  useEffect(() => {
+    debugStorage(); // mostra tudo
+    debugStorage('connection-storage');
     setIsNavigationReady(true);
   }, []);
 

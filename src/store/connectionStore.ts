@@ -1,4 +1,5 @@
 // src/store/connectionStore.ts
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { RestConfig, restValidator } from '../api/restValidatorService';
@@ -8,10 +9,11 @@ type ConnectionState = {
     isValid: boolean;
     isTesting: boolean;
     error: string | null;
+    hydrated: boolean;
     testConnection: (config: RestConfig) => Promise<{ success: boolean; error?: string }>;
     saveConfig: (config: RestConfig) => void;
     testAndSave: (config: RestConfig) => Promise<{ success: boolean; error?: string }>;
-    getBaseUrl: () => string | null; // 👈 ADICIONAMOS
+    getBaseUrl: () => string | null;
     clear: () => void;
 };
 
@@ -22,24 +24,31 @@ export const useConnectionStore = create<ConnectionState>()(
             isValid: false,
             isTesting: false,
             error: null,
+            hydrated: false,
 
             async testConnection(config) {
                 set({ isTesting: true, error: null });
                 const result = await restValidator.testConnectionWithFallback(config);
+
                 if (result.success) {
-                    set({ isTesting: false, isValid: true, error: null });
+                    set({
+                        isTesting: false,
+                        isValid: true,
+                        error: null,
+                    });
                     return { success: true };
                 } else {
                     set({
                         isTesting: false,
-                        error: result.error || 'Falha ao testar REST',
                         isValid: false,
+                        error: result.error || 'Falha ao testar REST',
                     });
-                    return { success: false, error: result.error, isValid: false, };
+                    return { success: false, error: result.error, isValid: false };
                 }
             },
 
             saveConfig(config) {
+                // salva e marca como válido
                 set({ config, isValid: true });
             },
 
@@ -51,13 +60,11 @@ export const useConnectionStore = create<ConnectionState>()(
                 return r;
             },
 
-            // 👇 ESSA É A FUNÇÃO QUE FALTAVA
             getBaseUrl() {
                 const cfg = get().config;
                 if (!cfg) return null;
                 const portPart = cfg.port?.trim() ? `:${cfg.port.trim()}` : '';
                 const endpointClean = cfg.endpoint?.replace(/^\//, '') || 'rest';
-                // ex: https://meuservidor:8080/rest
                 return `${cfg.protocol.toLowerCase()}://${cfg.address.trim()}${portPart}/${endpointClean}`;
             },
 
@@ -67,6 +74,26 @@ export const useConnectionStore = create<ConnectionState>()(
         }),
         {
             name: 'connection-storage',
+            storage: {
+                // 👇 AGORA SIM: usando AsyncStorage do RN
+                getItem: async (name) => {
+                    const value = await AsyncStorage.getItem(name);
+                    return value ? JSON.parse(value) : null;
+                },
+                setItem: async (name, value) => {
+                    await AsyncStorage.setItem(name, JSON.stringify(value));
+                },
+                removeItem: async (name) => {
+                    await AsyncStorage.removeItem(name);
+                },
+            },
+            // quando terminar de reidratar, marcamos que tá ok
+            onRehydrateStorage: () => {
+                return () => {
+                    // isso roda DEPOIS de ler do AsyncStorage
+                    useConnectionStore.setState({ hydrated: true });
+                };
+            },
         }
     )
 );

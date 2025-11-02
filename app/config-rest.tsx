@@ -21,7 +21,7 @@ export default function ConfigRestScreen() {
     const { theme } = useTheme();
     const router = useRouter();
     const toast = useToast();
-    const { config, isValid, isTesting, testConnection, saveConfig } = useConnectionStore();
+    const { config, isValid, isTesting, testConnection, saveConfig, testAndSave } = useConnectionStore();
 
     const { fromLogin, fromSettings } = useLocalSearchParams();
 
@@ -70,11 +70,14 @@ export default function ConfigRestScreen() {
         }
     };
 
-    const handleSave = () => {
-        // aqui você falou: "na ação de salvar é onde vou para o login"
-        saveConfig(currentConfig);
-        toast.success('Configuração salva.');
-        router.replace('/branches');
+    const handleSave = async () => {
+        const result = await testAndSave(currentConfig);
+        if (result.success) {
+            toast.success('Configuração salva.');
+            router.replace('/branches');
+        } else {
+            toast.error(result.error || 'Não foi possível salvar.');
+        }
     };
 
     return (
@@ -142,8 +145,8 @@ export default function ConfigRestScreen() {
                                         style={{ color: theme.text }}
                                         dropdownIconColor={theme.text}
                                     >
-                                        <Picker.Item label="HTTP" value="HTTP" />
-                                        <Picker.Item label="HTTPS" value="HTTPS" />
+                                        <Picker.Item color={theme.text} label="HTTP" value="HTTP" />
+                                        <Picker.Item color={theme.text} label="HTTPS" value="HTTPS" />
                                     </Picker>
                                 </View>
 

@@ -24,7 +24,13 @@ export default function SettingsScreen() {
     const router = useRouter();
     const toast = useToast();
 
-    const { logout } = useAuthStore();
+    const {
+        biometricEnabled,
+        biometricType,
+        enableBiometric,
+        disableBiometric,
+        logout
+    } = useAuthStore();
     const { clear: clearBranch } = useBranchStore();
     const { clear: clearModule } = useModuleStore();
     const { clear: clearConnection, config } = useConnectionStore();
@@ -198,6 +204,40 @@ export default function SettingsScreen() {
                         <Ionicons name="chevron-forward" size={16} color={theme.muted} />
                     </TouchableOpacity>
                 </View>
+
+                <Text style={[styles.sectionTitle, { color: theme.muted }]}>
+                    Segurança
+                </Text>
+                <View
+                    style={[
+                        styles.card,
+                        { backgroundColor: theme.surface, borderColor: theme.border },
+                    ]}
+                >
+                    <TouchableOpacity
+                        style={styles.listItem}
+                        onPress={async () => {
+                            const ok = await enableBiometric();
+                            if (ok) {
+                                toast.success('Biometria ativada.');
+                            } else {
+                                toast.error('Não foi possível ativar biometria neste aparelho.');
+                            }
+                        }}
+                    >
+                        <Ionicons name="finger-print-outline" size={20} color={theme.text} />
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.itemTitle, { color: theme.text }]}>
+                                {biometricEnabled ? 'Biometria ativa' : 'Ativar biometria'}
+                            </Text>
+                            <Text style={{ color: theme.muted, fontSize: 12 }}>
+                                Use Face ID / digital para entrar mais rápido
+                            </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={16} color={theme.muted} />
+                    </TouchableOpacity>
+                </View>
+
 
                 {/* DADOS DO APP */}
                 <Text style={[styles.sectionTitle, { color: theme.muted }]}>

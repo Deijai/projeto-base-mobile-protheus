@@ -6,7 +6,7 @@ export const lightTheme = {
     muted: '#6B7280',
     primary: '#0EA5E9',
     border: '#E5E7EB',
-    overlay: 'rgba(0,0,0,0.4)',
+    overlay: 'rgba(255, 255, 255, 0.97)',
 };
 
 export const darkTheme = {
