@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "01-teoria",
-    "slug": "01-teoria",
+    "name": "projeto-base-mobile-protheus",
+    "slug": "projeto-base-mobile-protheus",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "01teoria",
+    "scheme": "projeto-base-mobile-protheus",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

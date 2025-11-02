@@ -1,24 +1,108 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+// app/_layout.tsx
+import { LoadingOverlay } from '@/src/components/ui/LoadingOverlay';
+import { useModuleStore } from '@/src/store/moduleStore';
+import { Slot, useRouter, useSegments } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Toast } from '../src/components/ui/Toast';
+import { useAuthStore } from '../src/store/authStore';
+import { useBranchStore } from '../src/store/branchStore';
+import { useConnectionStore } from '../src/store/connectionStore';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const router = useRouter();
+  const segments = useSegments();
+
+  // stores
+  const { isAuthenticated, isLoading: authLoading } = useAuthStore();
+  const { isValid: restValid, config } = useConnectionStore();
+  const { selectedBranch } = useBranchStore();
+  const { selectedModule } = useModuleStore();
+
+  // evita navegar antes do root montar
+  const [isNavigationReady, setIsNavigationReady] = useState(false);
+
+  useEffect(() => {
+    setIsNavigationReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isNavigationReady) return;
+
+    // rota atual (primeiro nível): '', 'config-rest', '(auth)', 'branches', '(tabs)', ...
+    const rootSegment = segments[0];
+
+    // rotas que o usuário PODE acessar mesmo já estando configurado
+    const utilityRoutes = ['config-rest', 'branches', 'modules'];
+
+    // 1) sem REST válido -> manda pra /config-rest
+    if (!restValid || !config) {
+      if (rootSegment !== 'config-rest') {
+        router.replace('/config-rest');
+      }
+      return;
+    }
+
+    // 2) REST ok, mas usuário não logado -> manda pro login
+    if (!isAuthenticated) {
+      if (rootSegment !== '(auth)') {
+        router.replace('/(auth)/signin');
+      }
+      return;
+    }
+
+    // 3) logado, mas não tem filial escolhida -> manda pra /branches
+    if (!selectedBranch) {
+      if (rootSegment !== 'branches') {
+        router.replace('/branches');
+      }
+      return;
+    }
+
+    // 4) tem filial mas não tem módulo -> manda pra /modules
+    if (!selectedModule) {
+      if (rootSegment !== 'modules') {
+        router.replace('/modules');
+      }
+      return;
+    }
+
+    // 5) se já tem TUDO e o cara não está em tabs,
+    // mas está em uma rota utilitária (config-rest, branches, modules),
+    // **deixa ele lá**.
+    const isInUtility = utilityRoutes.includes(rootSegment as string);
+
+    if (!rootSegment?.startsWith('(tabs)') && !isInUtility) {
+      router.replace('/(tabs)');
+    }
+  }, [
+    isNavigationReady,
+    segments,
+    restValid,
+    config,
+    isAuthenticated,
+    selectedBranch,
+    selectedModule,
+    router,
+  ]);
+
+  // enquanto o auth está restaurando do AsyncStorage
+  if (authLoading) {
+    return (
+      <SafeAreaProvider>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          {/* <ActivityIndicator size="large" /> */}
+          <LoadingOverlay visible={true} text="Carregando dados..." />
+        </View>
+      </SafeAreaProvider>
+    );
+  }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <Slot />
+      <Toast />
+    </SafeAreaProvider>
   );
 }
