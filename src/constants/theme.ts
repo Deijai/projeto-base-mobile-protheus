@@ -7,6 +7,9 @@ export const lightTheme = {
     primary: '#0EA5E9',
     border: '#E5E7EB',
     overlay: 'rgba(255, 255, 255, 0.97)',
+    success: '#10B981',
+    error: '#EF4444',
+    warning: '#F59E0B',
 };
 
 export const darkTheme = {
@@ -18,6 +21,9 @@ export const darkTheme = {
     primary: '#38BDF8',
     border: '#1F2937',
     overlay: 'rgba(0,0,0,0.4)',
+    success: '#10B981',
+    error: '#EF4444',
+    warning: '#F59E0B',
 };
 
 // helper
